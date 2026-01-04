@@ -2,6 +2,20 @@ from fastapi import FastAPI, UploadFile, File, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 import os
 from dotenv import load_dotenv
+load_dotenv()
+
+# Initialize FastAPI
+app = FastAPI(title="Mamameal API")
+
+# CORS
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
 # Configure Gemini
 api_key = os.getenv("GOOGLE_API_KEY")
 if not api_key:
