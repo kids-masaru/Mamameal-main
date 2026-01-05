@@ -5,6 +5,7 @@ import { Upload, FileDown, Loader2, ArrowLeft, Sparkles } from "lucide-react";
 import Link from "next/link";
 import axios from "axios";
 import { motion } from "framer-motion";
+import API_URL from "@/lib/config";
 
 export default function SealPage() {
     const [file, setFile] = useState<File | null>(null);
@@ -52,7 +53,7 @@ export default function SealPage() {
         formData.append("file", file);
 
         try {
-            const response = await axios.post("http://127.0.0.1:8000/api/seal", formData, {
+            const response = await axios.post(`${API_URL}/api/seal`, formData, {
                 headers: { "Content-Type": "multipart/form-data" },
             });
             setResult(response.data);

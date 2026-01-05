@@ -5,6 +5,7 @@ import { Upload, CheckCircle, AlertCircle, ArrowLeft, Settings, FileText } from 
 import Link from "next/link";
 import axios from "axios";
 import { motion } from "framer-motion";
+import API_URL from "@/lib/config";
 
 export default function MastersPage() {
     const [productFile, setProductFile] = useState<File | null>(null);
@@ -20,7 +21,7 @@ export default function MastersPage() {
 
     const fetchMasterInfo = async () => {
         try {
-            const res = await axios.get("http://127.0.0.1:8000/api/masters/info");
+            const res = await axios.get(`${API_URL}/api/masters/info`);
             setCurrentMasters({
                 product: res.data.product,
                 customer: res.data.customer
@@ -41,7 +42,7 @@ export default function MastersPage() {
         formData.append("file", file);
 
         try {
-            await axios.post(`http://127.0.0.1:8000/api/masters/upload?type=${type}`, formData, {
+            await axios.post(`${API_URL}/api/masters/upload?type=${type}`, formData, {
                 headers: { "Content-Type": "multipart/form-data" },
             });
             setStatus(prev => ({ ...prev, [type]: "success" }));

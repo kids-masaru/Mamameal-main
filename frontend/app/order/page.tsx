@@ -5,6 +5,7 @@ import { Upload, FileDown, Loader2, ArrowLeft } from "lucide-react";
 import Link from "next/link";
 import axios from "axios";
 import { motion } from "framer-motion";
+import API_URL from "@/lib/config";
 
 export default function OrderPage() {
     const [file, setFile] = useState<File | null>(null);
@@ -53,7 +54,7 @@ export default function OrderPage() {
 
         try {
             // Use 127.0.0.1 to avoid localhost IPv6 issues
-            const response = await axios.post("http://127.0.0.1:8000/api/order-invoice", formData, {
+            const response = await axios.post(`${API_URL}/api/order-invoice`, formData, {
                 headers: { "Content-Type": "multipart/form-data" },
             });
             setResult(response.data);
