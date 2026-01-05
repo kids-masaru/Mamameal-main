@@ -1,7 +1,7 @@
 "use client";
 
-import { useState } from "react";
-import { Upload, CheckCircle, AlertCircle, ArrowLeft, Settings } from "lucide-react";
+import { useState, useEffect } from "react";
+import { Upload, CheckCircle, AlertCircle, ArrowLeft, Settings, FileText } from "lucide-react";
 import Link from "next/link";
 import axios from "axios";
 import { motion } from "framer-motion";
@@ -11,6 +11,25 @@ export default function MastersPage() {
     const [customerFile, setCustomerFile] = useState<File | null>(null);
     const [status, setStatus] = useState({ product: "", customer: "" });
     const [loading, setLoading] = useState({ product: false, customer: false });
+    const [currentMasters, setCurrentMasters] = useState({ product: "読み込み中...", customer: "読み込み中..." });
+
+    // Fetch current master file info on mount
+    useEffect(() => {
+        fetchMasterInfo();
+    }, []);
+
+    const fetchMasterInfo = async () => {
+        try {
+            const res = await axios.get("http://127.0.0.1:8000/api/masters/info");
+            setCurrentMasters({
+                product: res.data.product,
+                customer: res.data.customer
+            });
+        } catch (err) {
+            console.error("Failed to fetch master info:", err);
+            setCurrentMasters({ product: "取得エラー", customer: "取得エラー" });
+        }
+    };
 
     const handleUpload = async (type: "product" | "customer", file: File | null) => {
         if (!file) return;
@@ -22,11 +41,13 @@ export default function MastersPage() {
         formData.append("file", file);
 
         try {
-            await axios.post(`http://localhost:8000/api/masters/upload?type=${type}`, formData, {
+            await axios.post(`http://127.0.0.1:8000/api/masters/upload?type=${type}`, formData, {
                 headers: { "Content-Type": "multipart/form-data" },
             });
             setStatus(prev => ({ ...prev, [type]: "success" }));
             alert(`${type === "product" ? "商品" : "得意先"}マスタを更新しました！`);
+            // Refresh master info after upload
+            fetchMasterInfo();
         } catch (err: any) {
             console.error(err);
             setStatus(prev => ({ ...prev, [type]: "error" }));
@@ -53,7 +74,25 @@ export default function MastersPage() {
                         <h1 className="text-2xl font-bold text-gray-900">マスタ管理</h1>
                         <Settings className="w-6 h-6 text-gray-400" />
                     </div>
-                    <p className="text-gray-500 mb-8">最新のマスタデータをアップロードしてください。</p>
+                    <p className="text-gray-500 mb-6">最新のマスタデータをアップロードしてください。</p>
+
+                    {/* Current Master Info */}
+                    <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 mb-8">
+                        <h3 className="font-bold text-blue-900 mb-3 flex items-center gap-2">
+                            <FileText className="w-5 h-5" />
+                            現在使用中のマスタ
+                        </h3>
+                        <div className="grid gap-2 text-sm">
+                            <div className="flex justify-between items-center bg-white rounded-lg p-3">
+                                <span className="text-gray-600">商品マスタ:</span>
+                                <span className="font-medium text-blue-700">{currentMasters.product}</span>
+                            </div>
+                            <div className="flex justify-between items-center bg-white rounded-lg p-3">
+                                <span className="text-gray-600">得意先マスタ:</span>
+                                <span className="font-medium text-blue-700">{currentMasters.customer}</span>
+                            </div>
+                        </div>
+                    </div>
 
                     <div className="grid gap-6 md:grid-cols-2">
                         {/* Product Master */}

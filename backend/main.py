@@ -205,3 +205,17 @@ async def upload_master(file: UploadFile = File(...), type: str = "product"):
             raise HTTPException(status_code=500, detail="Failed to save file")
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/api/masters/info")
+def get_master_info():
+    """Get current master file names."""
+    try:
+        _, product_filename = load_master_csv(ASSETS_DIR, "商品マスタ")
+        _, customer_filename = load_master_csv(ASSETS_DIR, "得意先マスタ")
+        return {
+            "product": product_filename or "未設定",
+            "customer": customer_filename or "未設定"
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
