@@ -63,20 +63,20 @@ export default function Home() {
                     ))}
                 </div>
 
-                {/* Settings Link - Subtle */}
+                {/* Settings Link - Compact Card */}
                 <motion.div
                     initial={{ opacity: 0 }}
                     animate={{ opacity: 1 }}
                     transition={{ delay: 0.3 }}
-                    className="mt-8 flex justify-end"
+                    className="mt-6 flex justify-end"
                 >
                     <Link
                         href="/masters"
-                        className="inline-flex items-center gap-2 text-gray-400 hover:text-gray-600 text-sm transition-colors group"
+                        className="inline-flex items-center gap-3 px-4 py-3 bg-gray-50 hover:bg-gray-100 border border-gray-200 rounded-xl text-gray-600 hover:text-gray-800 text-sm transition-all group"
                     >
-                        <Settings className="w-4 h-4" />
-                        <span>マスタ設定</span>
-                        <ArrowRight className="w-3 h-3 opacity-0 group-hover:opacity-100 group-hover:translate-x-1 transition-all" />
+                        <Settings className="w-5 h-5 text-gray-400 group-hover:text-gray-600" />
+                        <span className="font-medium">マスタ設定</span>
+                        <ArrowRight className="w-4 h-4 text-gray-400 group-hover:translate-x-1 transition-transform" />
                     </Link>
                 </motion.div>
 
