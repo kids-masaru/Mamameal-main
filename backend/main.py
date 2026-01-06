@@ -219,3 +219,46 @@ def get_master_info():
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
+# Template file mappings
+TEMPLATE_FILES = {
+    "seal": ("seal.xlsx", "シールテンプレート"),
+    "suudashiyo": ("template.xlsm", "数出表テンプレート"),
+    "nouhinsyo": ("nouhinsyo.xlsx", "納品書テンプレート")
+}
+
+@app.get("/api/templates/info")
+def get_template_info():
+    """Get current template file info."""
+    try:
+        result = {}
+        for key, (filename, label) in TEMPLATE_FILES.items():
+            filepath = os.path.join(ASSETS_DIR, filename)
+            if os.path.exists(filepath):
+                mtime = os.path.getmtime(filepath)
+                from datetime import datetime
+                modified = datetime.fromtimestamp(mtime).strftime("%Y-%m-%d %H:%M")
+                result[key] = {"filename": filename, "label": label, "exists": True, "modified": modified}
+            else:
+                result[key] = {"filename": filename, "label": label, "exists": False, "modified": None}
+        return result
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/api/templates/upload")
+async def upload_template(file: UploadFile = File(...), type: str = "seal"):
+    """Upload a template file."""
+    try:
+        if type not in TEMPLATE_FILES:
+            raise HTTPException(status_code=400, detail=f"Invalid template type. Use: {list(TEMPLATE_FILES.keys())}")
+        
+        expected_filename, label = TEMPLATE_FILES[type]
+        content = await file.read()
+        
+        # Save template file
+        save_path = os.path.join(ASSETS_DIR, expected_filename)
+        with open(save_path, "wb") as f:
+            f.write(content)
+        
+        return {"message": f"{label}を更新しました"}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))

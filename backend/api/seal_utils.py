@@ -92,28 +92,46 @@ def generate_seal_data(pdf_bytes, model_name="gemini-3-flash-preview", api_key=N
 
 def create_seal_excel(blocks):
     """
-    Create Excel file from seal blocks.
+    Create Excel file from seal blocks using template.
     """
-    wb = Workbook()
-    ws = wb.active
-    ws.title = "Gemini抽出データ"
+    # Try to load template, fallback to new workbook if not found
+    template_path = os.path.join(os.path.dirname(__file__), 'assets', 'seal.xlsx')
     
-    headers = ['クライアント名', 'クラス名', '準備物', '弁当数', '日付', '学年']
-    ws.append(headers)
+    if os.path.exists(template_path):
+        try:
+            wb = load_workbook(template_path)
+            ws = wb.active
+            # Find the first empty row after header (assuming row 1 is header)
+            start_row = 2
+        except Exception as e:
+            print(f"Error loading template, using new workbook: {e}")
+            wb = Workbook()
+            ws = wb.active
+            ws.title = "Gemini抽出データ"
+            headers = ['クライアント名', 'クラス名', '準備物', '弁当数', '日付', '学年']
+            ws.append(headers)
+            start_row = 2
+    else:
+        wb = Workbook()
+        ws = wb.active
+        ws.title = "Gemini抽出データ"
+        headers = ['クライアント名', 'クラス名', '準備物', '弁当数', '日付', '学年']
+        ws.append(headers)
+        start_row = 2
     
-    for block in blocks:
+    for idx, block in enumerate(blocks):
         prep = block.get('preparations', [])
         prep_text = ', '.join(prep) if isinstance(prep, list) else str(prep)
-        ws.append([
-            block.get('client_name', ''),
-            block.get('class_name', ''),
-            prep_text,
-            block.get('meal_count', ''),
-            block.get('date', ''),
-            block.get('grade', '')
-        ])
+        row = start_row + idx
+        ws.cell(row=row, column=1, value=block.get('client_name', ''))
+        ws.cell(row=row, column=2, value=block.get('class_name', ''))
+        ws.cell(row=row, column=3, value=prep_text)
+        ws.cell(row=row, column=4, value=block.get('meal_count', ''))
+        ws.cell(row=row, column=5, value=block.get('date', ''))
+        ws.cell(row=row, column=6, value=block.get('grade', ''))
     
     out = io.BytesIO()
     wb.save(out)
     out.seek(0)
     return out
+
