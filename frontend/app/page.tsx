@@ -5,7 +5,7 @@ import { FileText, Tag, Settings, ArrowRight } from "lucide-react";
 import { motion } from "framer-motion";
 
 export default function Home() {
-    const features = [
+    const mainFeatures = [
         {
             title: "数出表・納品書作成",
             description: "PDFから注文情報を抽出し、Excelの数出表と納品書を自動作成します。",
@@ -21,14 +21,6 @@ export default function Home() {
             href: "/seal",
             color: "bg-pink-50 hover:bg-pink-100",
             border: "border-pink-200",
-        },
-        {
-            title: "マスタ管理",
-            description: "商品マスタと得意先マスタの登録・更新を行います。",
-            icon: <Settings className="w-8 h-8 text-gray-500" />,
-            href: "/masters",
-            color: "bg-gray-50 hover:bg-gray-100",
-            border: "border-gray-200",
         },
     ];
 
@@ -46,8 +38,9 @@ export default function Home() {
                     <p className="text-gray-500">業務効率化のための統合プラットフォーム</p>
                 </header>
 
+                {/* Main Feature Cards */}
                 <div className="grid md:grid-cols-1 gap-6">
-                    {features.map((feature, index) => (
+                    {mainFeatures.map((feature, index) => (
                         <Link key={index} href={feature.href}>
                             <motion.div
                                 initial={{ opacity: 0, y: 20 }}
@@ -70,7 +63,24 @@ export default function Home() {
                     ))}
                 </div>
 
-                <footer className="mt-16 text-center text-gray-400 text-sm">
+                {/* Settings Link - Subtle */}
+                <motion.div
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    transition={{ delay: 0.3 }}
+                    className="mt-8 flex justify-end"
+                >
+                    <Link
+                        href="/masters"
+                        className="inline-flex items-center gap-2 text-gray-400 hover:text-gray-600 text-sm transition-colors group"
+                    >
+                        <Settings className="w-4 h-4" />
+                        <span>マスタ設定</span>
+                        <ArrowRight className="w-3 h-3 opacity-0 group-hover:opacity-100 group-hover:translate-x-1 transition-all" />
+                    </Link>
+                </motion.div>
+
+                <footer className="mt-12 text-center text-gray-400 text-sm">
                     &copy; 2024 Mamameal Co., Ltd.
                 </footer>
             </div>
