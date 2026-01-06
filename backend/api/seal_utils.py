@@ -92,46 +92,55 @@ def generate_seal_data(pdf_bytes, model_name="gemini-3-flash-preview", api_key=N
 
 def create_seal_excel(blocks):
     """
-    Create Excel file from seal blocks using template.
+    Create Excel file from seal blocks.
+    Since templates may have merged cells which cause errors,
+    we create a clean workbook with properly formatted data.
     """
-    # Try to load template, fallback to new workbook if not found
-    template_path = os.path.join(os.path.dirname(__file__), 'assets', 'seal.xlsx')
+    # Always create a new workbook to avoid merged cell issues
+    wb = Workbook()
+    ws = wb.active
+    ws.title = "シールデータ"
     
-    if os.path.exists(template_path):
-        try:
-            wb = load_workbook(template_path)
-            ws = wb.active
-            # Find the first empty row after header (assuming row 1 is header)
-            start_row = 2
-        except Exception as e:
-            print(f"Error loading template, using new workbook: {e}")
-            wb = Workbook()
-            ws = wb.active
-            ws.title = "Gemini抽出データ"
-            headers = ['クライアント名', 'クラス名', '準備物', '弁当数', '日付', '学年']
-            ws.append(headers)
-            start_row = 2
-    else:
-        wb = Workbook()
-        ws = wb.active
-        ws.title = "Gemini抽出データ"
-        headers = ['クライアント名', 'クラス名', '準備物', '弁当数', '日付', '学年']
-        ws.append(headers)
-        start_row = 2
+    # Headers
+    headers = ['クライアント名', 'クラス名', '準備物', '弁当数', '日付', '学年']
+    ws.append(headers)
     
-    for idx, block in enumerate(blocks):
+    # Style header row
+    from openpyxl.styles import Font, PatternFill, Alignment
+    header_font = Font(bold=True, color="FFFFFF")
+    header_fill = PatternFill(start_color="4472C4", end_color="4472C4", fill_type="solid")
+    for col_num, cell in enumerate(ws[1], 1):
+        cell.font = header_font
+        cell.fill = header_fill
+        cell.alignment = Alignment(horizontal="center")
+    
+    # Write data
+    for block in blocks:
         prep = block.get('preparations', [])
         prep_text = ', '.join(prep) if isinstance(prep, list) else str(prep)
-        row = start_row + idx
-        ws.cell(row=row, column=1, value=block.get('client_name', ''))
-        ws.cell(row=row, column=2, value=block.get('class_name', ''))
-        ws.cell(row=row, column=3, value=prep_text)
-        ws.cell(row=row, column=4, value=block.get('meal_count', ''))
-        ws.cell(row=row, column=5, value=block.get('date', ''))
-        ws.cell(row=row, column=6, value=block.get('grade', ''))
+        ws.append([
+            block.get('client_name', ''),
+            block.get('class_name', ''),
+            prep_text,
+            block.get('meal_count', ''),
+            block.get('date', ''),
+            block.get('grade', '')
+        ])
+    
+    # Auto-adjust column widths
+    for column_cells in ws.columns:
+        max_length = 0
+        column = column_cells[0].column_letter
+        for cell in column_cells:
+            try:
+                if len(str(cell.value)) > max_length:
+                    max_length = len(str(cell.value))
+            except:
+                pass
+        adjusted_width = min(max_length + 2, 50)
+        ws.column_dimensions[column].width = adjusted_width
     
     out = io.BytesIO()
     wb.save(out)
     out.seek(0)
     return out
-
