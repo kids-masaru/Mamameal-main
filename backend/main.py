@@ -62,7 +62,9 @@ from openpyxl import load_workbook
 import io
 import pandas as pd
 
-ASSETS_DIR = os.path.join(os.path.dirname(__file__), 'api', 'assets')
+# Assets directory - configurable for Railway Volume
+# In Railway, set ASSETS_DIR env var to "/app/api/assets" (Volume mount path)
+ASSETS_DIR = os.getenv("ASSETS_DIR", os.path.join(os.path.dirname(__file__), 'api', 'assets'))
 
 @app.post("/api/order-invoice")
 async def process_order(file: UploadFile = File(...)):
