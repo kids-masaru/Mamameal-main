@@ -4,6 +4,7 @@ import json
 import pdfplumber
 import io
 import logging
+import re
 
 logger = logging.getLogger(__name__)
 
@@ -37,37 +38,52 @@ def process_order_pdf_with_ai(pdf_bytes: bytes, api_key: str, model_name: str = 
     You are an expert data extraction assistant.
     Analyze this PDF (Delivery Slip / Order Sheet) and extract the following information into a structured JSON format.
 
-    **Goal:** Extract client orders and bento (meal) details.
+    **Goal:** 
+    1. Extract the LIST of Bento Types (Columns) from the header table.
+    2. Extract client orders for these bentos.
+
+    **Structure of the Header:**
+    - The table header defines the specific bentos.
+    - Some headers are merged. e.g. Top: "キャラ弁(学食)", Sub: "飯あり 100", "飯あり 150".
+    - You must flattened these into unique names: "キャラ弁(学食) 飯あり 100", "キャラ弁(学食) 飯あり 150".
+    - Expected "Fixed" Order at start (Left->Right):
+      1. キャラ弁(学食) 飯あり 100
+      2. キャラ弁(学食) 飯あり 150
+      3. キャラ弁 飯あり 120
+      4. キャラ弁 おにぎり(三角)
+      5. キャラ弁 飯なし
+      6. 赤 飯あり 120
+      7. 赤 飯あり 100
+      8. 赤 おにぎり(三角)
+      9. 赤 飯なし
+    - **Variable Section**: After "Red" (赤) group, there are variable bentos (e.g., "キャラパン", "クリスマスカレー"). Extract them exactly as written.
 
     **Required JSON Structure:**
     {
+      "bento_headers": [
+        "String representation of column 1 (e.g. キャラ弁(学食) 飯あり 100)",
+        "String representation of column 2",
+        ...
+      ],
       "clients": [
         {
-          "client_name": "Name of the kindergarten/school (e.g., XX幼稚園, XX小学校)",
-          "client_id": "Client ID if visible (e.g., 10001), else null",
+          "client_name": "Name of the kindergarten/school",
+          "client_id": "Client ID (10001, etc) or null",
           "orders": [
-            {
-              "type": "student", // "student" (園児) or "teacher" (先生/職員)
-              "count": 12 // integer
-            }
+             // List of counts corresponding to the bento_headers order, OR explicit mapping
+             { "bento_name": "Matches one of bento_headers", "count": 12, "type": "student" },
+             { "bento_name": "Matches one of bento_headers", "count": 2, "type": "teacher" }
           ]
-        }
-      ],
-      "bentos": [
-        {
-            "name": "Name of the bento/item (e.g., 普通食, 調整食, etc.)",
-            "count": 5
         }
       ]
     }
 
     **Rules:**
-    - "Client Name" is usually a facility name ending in 園 or 学校.
-    - "Orders" are counts of meals. Sometimes separated by Student (園児) and Teacher (先生/職員).
-    - If there is a table listing Bento types (e.g., ご飯あり, おかずのみ), extract them into "bentos".
-    - Ignore page numbers or footer text.
-    - Normalize numbers (convert full-width to half-width).
-    - If a count is written like "35+1", calculate the sum (36).
+    - "Client Name" ends in 園 or 学校.
+    - "Orders": Extract the numerical counts for each bento column.
+    - If a cell is empty or "-", count is 0.
+    - Use half-width numbers.
+    - If "35+1", sum it to 36.
     
     Return ONLY valid JSON.
     """

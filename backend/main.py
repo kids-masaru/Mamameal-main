@@ -113,13 +113,13 @@ async def process_order(file: UploadFile = File(...)):
 
         # 2. Process Bentos
         df_bento_sheet = None
-        bentos = ai_result.get('bentos', [])
-        bento_names = [b.get('name', '') for b in bentos]
+        # Use 'bento_headers' strings extracted by AI
+        bento_names = ai_result.get('bento_headers', [])
         
         if bento_names:
-            # Use existing matching logic but with AI-extracted names
+            # Match against Product Master to get details (Box Count, Price, Type)
+            # match_bento_data returns [[Name, Box, Price, Type], ...]
             matched_data = match_bento_data(bento_names, df_product_master)
-            # matched_data is [[name, box, price, type], ...]
             df_bento_sheet = pd.DataFrame(matched_data, columns=['商品予定名', 'パン箱入数', '売価単価', '弁当区分'])
 
         # 3. Paste Sheet (Legacy) -> Empty
