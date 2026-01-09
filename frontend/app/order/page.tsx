@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Upload, FileDown, Loader2, ArrowLeft } from "lucide-react";
+import { Upload, FileDown, Loader2, ArrowLeft, Sparkles } from "lucide-react";
 import Link from "next/link";
 import axios from "axios";
 import { motion } from "framer-motion";
@@ -97,7 +97,12 @@ export default function OrderPage() {
                     animate={{ opacity: 1, y: 0 }}
                     className="bg-white rounded-3xl shadow-sm border border-gray-100 p-8"
                 >
-                    <h1 className="text-2xl font-bold text-gray-900 mb-2">数出表・納品書作成</h1>
+                    <div className="flex items-center gap-3 mb-2">
+                        <h1 className="text-2xl font-bold text-gray-900">数出表・納品書作成</h1>
+                        <span className="bg-orange-100 text-orange-600 text-xs px-2 py-1 rounded-full font-bold flex items-center gap-1">
+                            <Sparkles className="w-3 h-3" /> AI Powered
+                        </span>
+                    </div>
                     <p className="text-gray-500 mb-8">注文PDFをアップロードしてください。</p>
 
                     <form onSubmit={handleSubmit} className="space-y-6">
