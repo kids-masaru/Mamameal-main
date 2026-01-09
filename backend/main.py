@@ -52,11 +52,10 @@ async def create_seal(file: UploadFile = File(...)):
 
 # --- Order/Invoice Processing ---
 from api.pdf_utils import (
-    safe_write_df, pdf_to_excel_data_for_paste_sheet, extract_table_from_pdf_for_bento,
-    find_correct_anchor_for_bento, extract_bento_range_for_bento, match_bento_data, 
-    extract_detailed_client_info_from_pdf, export_detailed_client_data_to_dataframe,
-    paste_dataframe_to_sheet
+    safe_write_df, match_bento_data, paste_dataframe_to_sheet
 )
+# Note: Legacy extraction functions removed/unused in favor of AI
+from api.ai_processor import process_order_pdf_with_ai
 from api.master_utils import load_master_csv, save_master_file
 from openpyxl import load_workbook
 import io
@@ -70,35 +69,62 @@ ASSETS_DIR = os.getenv("ASSETS_DIR", os.path.join(os.path.dirname(__file__), 'ap
 async def process_order(file: UploadFile = File(...)):
     try:
         pdf_bytes = await file.read()
-        pdf_file = io.BytesIO(pdf_bytes)
         
         # Load Masters
         df_product_master, _ = load_master_csv(ASSETS_DIR, "商品マスタ")
         df_customer_master, _ = load_master_csv(ASSETS_DIR, "得意先マスタ")
         
-        # Extract Data
-        # 1. Paste Sheet
-        df_paste_sheet = pdf_to_excel_data_for_paste_sheet(io.BytesIO(pdf_bytes))
-        if df_paste_sheet is None:
-            raise HTTPException(status_code=400, detail="Failed to extract data from PDF for paste sheet")
-            
-        # 2. Bento Data
-        df_bento_sheet = None
-        tables = extract_table_from_pdf_for_bento(io.BytesIO(pdf_bytes))
-        if tables:
-            main_table = max(tables, key=len)
-            anchor_col = find_correct_anchor_for_bento(main_table)
-            if anchor_col != -1:
-                bento_list = extract_bento_range_for_bento(main_table, anchor_col)
-                if bento_list:
-                    matched_data = match_bento_data(bento_list, df_product_master)
-                    df_bento_sheet = pd.DataFrame(matched_data, columns=['商品予定名', 'パン箱入数', '売価単価', '弁当区分'])
+        # --- AI Extraction ---
+        if not api_key:
+             raise HTTPException(status_code=500, detail="API Key not configured for AI processing")
 
-        # 3. Client Data
+        ai_result = process_order_pdf_with_ai(pdf_bytes, api_key)
+        
+        # 1. Process Clients
         df_client_sheet = None
-        client_data = extract_detailed_client_info_from_pdf(io.BytesIO(pdf_bytes))
-        if client_data:
-            df_client_sheet = export_detailed_client_data_to_dataframe(client_data)
+        clients = ai_result.get('clients', [])
+        client_rows = []
+        for client in clients:
+            c_name = client.get('client_name', '')
+            orders = client.get('orders', [])
+            
+            student_meals = [o['count'] for o in orders if o.get('type') == 'student']
+            teacher_meals = [o['count'] for o in orders if o.get('type') == 'teacher']
+
+            # Pad or truncate to match Excel expects (3 students, 2 teachers cols)
+            s1 = student_meals[0] if len(student_meals) > 0 else ''
+            s2 = student_meals[1] if len(student_meals) > 1 else ''
+            s3 = student_meals[2] if len(student_meals) > 2 else ''
+            t1 = teacher_meals[0] if len(teacher_meals) > 0 else ''
+            t2 = teacher_meals[1] if len(teacher_meals) > 1 else ''
+
+            client_rows.append({
+                'クライアント名': c_name,
+                '園児の給食の数1': s1,
+                '園児の給食の数2': s2,
+                '園児の給食の数3': s3,
+                '先生の給食の数1': t1,
+                '先生の給食の数2': t2
+            })
+        if client_rows:
+            # Reorder columns to match 'extract_detailed_client_info' output format if needed?
+            # The safe_write_df just dumps dict or tuple? No, it expects DataFrame.
+            df_client_sheet = pd.DataFrame(client_rows)
+
+        # 2. Process Bentos
+        df_bento_sheet = None
+        bentos = ai_result.get('bentos', [])
+        bento_names = [b.get('name', '') for b in bentos]
+        
+        if bento_names:
+            # Use existing matching logic but with AI-extracted names
+            matched_data = match_bento_data(bento_names, df_product_master)
+            # matched_data is [[name, box, price, type], ...]
+            df_bento_sheet = pd.DataFrame(matched_data, columns=['商品予定名', 'パン箱入数', '売価単価', '弁当区分'])
+
+        # 3. Paste Sheet (Legacy) -> Empty
+        df_paste_sheet = pd.DataFrame() 
+
 
         # 4. Generate Files
         template_path = os.path.join(ASSETS_DIR, "template.xlsm")
