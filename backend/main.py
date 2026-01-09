@@ -117,9 +117,25 @@ async def process_order(file: UploadFile = File(...)):
         bento_names = ai_result.get('bento_headers', [])
         
         if bento_names:
-            # Match against Product Master to get details (Box Count, Price, Type)
-            # match_bento_data returns [[Name, Box, Price, Type], ...]
-            matched_data = match_bento_data(bento_names, df_product_master)
+            matched_data = []
+            for b_name in bento_names:
+                search_key = b_name
+                # User requested grouping logic:
+                # "Charaben..." -> Search "キャラ"
+                # "Red..." -> Search "赤"
+                if "キャラ弁" in b_name:
+                    search_key = "キャラ"
+                elif b_name.startswith("赤 ") or b_name == "赤": # Match "赤 飯あり..."
+                    search_key = "赤"
+                    
+                # Match against Product Master (returns [[Name, Box, Price, Type]])
+                # We use search_key to find the row, but keep b_name for the Excel Name column
+                match_res = match_bento_data([search_key], df_product_master)
+                if match_res:
+                    m_row = match_res[0]
+                    # [Original_AI_Name, Box, Price, Type]
+                    matched_data.append([b_name, m_row[1], m_row[2], m_row[3]])
+            
             df_bento_sheet = pd.DataFrame(matched_data, columns=['商品予定名', 'パン箱入数', '売価単価', '弁当区分'])
 
         # 3. Paste Sheet (Legacy) -> Empty

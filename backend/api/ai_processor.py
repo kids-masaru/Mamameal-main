@@ -44,25 +44,23 @@ def process_order_pdf_with_ai(pdf_bytes: bytes, api_key: str, model_name: str = 
 
     **Structure of the Header:**
     - The table header defines the specific bentos.
-    - Some headers are merged. e.g. Top: "キャラ弁(学食)", Sub: "飯あり 100", "飯あり 150".
-    - You must flattened these into unique names: "キャラ弁(学食) 飯あり 100", "キャラ弁(学食) 飯あり 150".
-    - Expected "Fixed" Order at start (Left->Right):
-      1. キャラ弁(学食) 飯あり 100
-      2. キャラ弁(学食) 飯あり 150
-      3. キャラ弁 飯あり 120
-      4. キャラ弁 おにぎり(三角)
-      5. キャラ弁 飯なし
-      6. 赤 飯あり 120
-      7. 赤 飯あり 100
-      8. 赤 おにぎり(三角)
-      9. 赤 飯なし
-    - **Variable Section**: After "Red" (赤) group, there are variable bentos (e.g., "キャラパン", "クリスマスカレー"). Extract them exactly as written.
+    - **Fixed Section (First ~10 columns)**: You MUST extract these with the EXACT names below if they exist in the text/grid:
+      1. "キャラ弁(学食) 飯あり 100"
+      2. "キャラ弁(学食) 飯あり 150"
+      3. "キャラ弁 飯あり 120"
+      4. "キャラ弁 おにぎり(三角)"
+      5. "キャラ弁 飯なし"
+      6. "赤 飯あり 120"
+      7. "赤 飯あり 100"
+      8. "赤 おにぎり(三角)"
+      9. "赤 おにぎり(半俵)"
+      10. "赤 飯なし"
+    - **Variable Section**: Any columns to the right of the "Red" (赤) group (e.g., "キャラパン", "クリスマスカレー"). Extract these exactly as written in the single header cell.
 
     **Required JSON Structure:**
     {
       "bento_headers": [
-        "String representation of column 1 (e.g. キャラ弁(学食) 飯あり 100)",
-        "String representation of column 2",
+        "String representation of column 1 (Must match Fixed Section format if applicable)",
         ...
       ],
       "clients": [
