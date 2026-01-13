@@ -136,23 +136,40 @@ def extract_detailed_client_info_from_pdf(pdf_file_obj):
     return client_data
 
 def extract_meal_numbers_from_row(rows, row_idx, client_id, client_name):
+    """
+    Extracts meal numbers while PRESERVING column alignment (sparse grid).
+    Returns lists of numbers/empty strings corresponding to grid columns.
+    """
     client_info = {'client_id': client_id, 'client_name': client_name, 'student_meals': [], 'teacher_meals': []}
+    
     rows_to_check = []
+    # Identify rows associated with this client
     for i in range(max(0, row_idx - 3), min(len(rows), row_idx + 3)):
         if i < len(rows) and rows[i]:
             left_cell = str(rows[i][0]).strip()
-            if left_cell == client_id: rows_to_check.append(('id', rows[i]))
-            elif left_cell == client_name: rows_to_check.append(('name', rows[i]))
-    all_numbers = []
+            # Student Row (ID matched)
+            if left_cell == client_id: 
+                rows_to_check.append(('id', rows[i]))
+            # Teacher Row (Name matched)
+            elif left_cell == client_name: 
+                rows_to_check.append(('name', rows[i]))
+    
     for row_type, row in rows_to_check:
+        current_meals = []
+        # Exclude the first cell (Client ID/Name) -> Start from index 1
         for cell in row[1:]:
             cell_str = str(cell).strip()
             if cell_str and re.match(r'^\d+$', cell_str):
-                all_numbers.append({'number': int(cell_str), 'row_type': row_type})
-            elif cell_str and not re.match(r'^\d+$', cell_str):
-                break
-    client_info['student_meals'] = [item['number'] for item in all_numbers if item['row_type'] == 'id'][:3]
-    client_info['teacher_meals'] = [item['number'] for item in all_numbers if item['row_type'] == 'name'][:2]
+                current_meals.append(int(cell_str))
+            else:
+                # IMPORTANT: Preserving empty cells to maintain grid alignment
+                current_meals.append('')
+        
+        if row_type == 'id':
+            client_info['student_meals'] = current_meals
+        elif row_type == 'name':
+            client_info['teacher_meals'] = current_meals
+
     return client_info
 
 def export_detailed_client_data_to_dataframe(client_data):

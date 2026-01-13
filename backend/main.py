@@ -88,52 +88,34 @@ async def process_order(file: UploadFile = File(...)):
         df_client_sheet = None
         client_data_legacy = extract_detailed_client_info_from_pdf(io.BytesIO(pdf_bytes))
         
+        num_bento_cols = len(bento_header_names) if bento_header_names else 5 # Default to 5 to be safe if no AI headers?
+        
         client_rows = []
         for info in client_data_legacy:
             s_list = info.get('student_meals', [])
             t_list = info.get('teacher_meals', [])
             
-            def get_val(lst, idx):
-                return lst[idx] if idx < len(lst) else ''
+            row = {'クライアント名': info['client_name']}
             
-            # Legacy code slices student[:3] and teacher[:2]
-            s1, s2, s3 = get_val(s_list, 0), get_val(s_list, 1), get_val(s_list, 2)
-            t1, t2, t3 = get_val(t_list, 0), get_val(t_list, 1), get_val(t_list, 2)
+            # Dynamic Columns: Student 1..N
+            for i in range(num_bento_cols):
+                val = s_list[i] if i < len(s_list) else ''
+                row[f's_{i}'] = val
+                
+            # Dynamic Columns: Teacher 1..N
+            for i in range(num_bento_cols):
+                val = t_list[i] if i < len(t_list) else ''
+                row[f't_{i}'] = val
             
-            client_rows.append({
-                'クライアント名': info['client_name'],
-                '園児の給食の数1': s1,
-                '園児の給食の数2': s2,
-                '園児の給食の数3': s3,
-                '先生の給食の数1': t1,
-                '先生の給食の数2': t2,
-                '先生の給食の数3': t3
-            })
+            client_rows.append(row)
             
         if client_rows:
             df_client_sheet = pd.DataFrame(client_rows)
-            
-            # --- Dynamic Header Injection (Hybrid Approach) ---
-            # Rename generic columns "園児の給食の数1" to "ActualBentoName (園児)"
-            # This bridges the gap between AI (Names) and Legacy Code (Numbers/Counts).
-            if bento_header_names:
-                rename_map = {}
-                for i in range(3): # Supports up to 3 columns (1, 2, 3)
-                    if i < len(bento_header_names):
-                        b_name = bento_header_names[i]
-                        
-                        # Student Column Renaming
-                        old_s = f'園児の給食の数{i+1}'
-                        new_s = f'{b_name}\n(園児)' # Use newline for cleaner Excel header
-                        rename_map[old_s] = new_s
-                        
-                        # Teacher Column Renaming
-                        old_t = f'先生の給食の数{i+1}'
-                        new_t = f'{b_name}\n(先生)'
-                        rename_map[old_t] = new_t
-                
-                if rename_map:
-                    df_client_sheet.rename(columns=rename_map, inplace=True)
+            # Enforce column order: Client, S...S, T...T
+            cols = ['クライアント名'] + [f's_{i}' for i in range(num_bento_cols)] + [f't_{i}' for i in range(num_bento_cols)]
+            # Ensure only existing columns are selected (in case df was created differently?)
+            # creating from list of dicts creates all keys.
+            df_client_sheet = df_client_sheet[cols]
 
         # 2. Process Bentos
         df_bento_sheet = None
@@ -204,20 +186,19 @@ async def process_order(file: UploadFile = File(...)):
             
             # --- Dynamic Header Injection (Explicit Write) ---
             # Manually write headers to Row 1 because safe_write_df reads values only
+            # The structure is: Client | Student_Cols... | Teacher_Cols...
             ws_client.cell(row=1, column=1, value='クライアント名')
             
             if bento_header_names:
-                for i in range(3):
-                    if i < len(bento_header_names):
-                        b_name = bento_header_names[i]
-                        # Student Columns start at B (Col 2)
-                        # Teacher Columns start at E (Col 5)
-                        
-                        # Student Header (B, C, D)
-                        ws_client.cell(row=1, column=2+i, value=f"{b_name}\n(園児)")
-                        
-                        # Teacher Header (E, F, G)
-                        ws_client.cell(row=1, column=5+i, value=f"{b_name}\n(先生)")
+                num_cols = len(bento_header_names)
+                for i in range(num_cols):
+                    b_name = bento_header_names[i]
+                    
+                    # Student Header (Starts at Col 2)
+                    ws_client.cell(row=1, column=2+i, value=f"{b_name}\n(園児)")
+                    
+                    # Teacher Header (Starts after Student Block)
+                    ws_client.cell(row=1, column=2+num_cols+i, value=f"{b_name}\n(先生)")
             # -------------------------------------------------
             
         out_template = io.BytesIO()
