@@ -111,6 +111,28 @@ async def process_order(file: UploadFile = File(...)):
             
         if client_rows:
             df_client_sheet = pd.DataFrame(client_rows)
+            
+            # --- Dynamic Header Injection (Hybrid Approach) ---
+            # Rename generic columns "園児の給食の数1" to "ActualBentoName (園児)"
+            # This bridges the gap between AI (Names) and Legacy Code (Numbers/Counts).
+            if bento_header_names:
+                rename_map = {}
+                for i in range(3): # Supports up to 3 columns (1, 2, 3)
+                    if i < len(bento_header_names):
+                        b_name = bento_header_names[i]
+                        
+                        # Student Column Renaming
+                        old_s = f'園児の給食の数{i+1}'
+                        new_s = f'{b_name}\n(園児)' # Use newline for cleaner Excel header
+                        rename_map[old_s] = new_s
+                        
+                        # Teacher Column Renaming
+                        old_t = f'先生の給食の数{i+1}'
+                        new_t = f'{b_name}\n(先生)'
+                        rename_map[old_t] = new_t
+                
+                if rename_map:
+                    df_client_sheet.rename(columns=rename_map, inplace=True)
 
         # 2. Process Bentos
         df_bento_sheet = None

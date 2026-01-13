@@ -61,6 +61,19 @@ try:
     # Print first few
     print(json.dumps(grid[:5], indent=2, ensure_ascii=False))
 
+    print("\n--- Simulating Header Injection ---")
+    bento_headers = result.get('bento_headers', [])
+    print(f"AI Detected Headers: {bento_headers}")
+    
+    renamed_cols = []
+    for i in range(3):
+         if i < len(bento_headers):
+             renamed_cols.append(f"Col {i+1} Student -> {bento_headers[i]} (園児)")
+             renamed_cols.append(f"Col {i+1} Teacher -> {bento_headers[i]} (先生)")
+    
+    for rc in renamed_cols:
+        print(rc)
+
     print("\nSuccess!")
 except Exception as e:
     print(f"\nError: {e}")
