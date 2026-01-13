@@ -68,9 +68,9 @@ def process_order_pdf_with_ai(pdf_bytes: bytes, api_key: str, model_name: str = 
           "client_name": "Name of the kindergarten/school",
           "client_id": "Client ID (10001, etc) or null",
           "orders": [
-             // List of counts corresponding to the bento_headers order, OR explicit mapping
-             { "bento_name": "Matches one of bento_headers", "count": 12, "type": "student" },
-             { "bento_name": "Matches one of bento_headers", "count": 2, "type": "teacher" }
+             // EXPLICIT MAPPING REQUIRED. Do not rely on order.
+             { "bento_name": "Must EXACTLY match one of bento_headers", "count": 12, "type": "student" },
+             { "bento_name": "Must EXACTLY match one of bento_headers", "count": 2, "type": "teacher" }
           ]
         }
       ]
@@ -79,11 +79,11 @@ def process_order_pdf_with_ai(pdf_bytes: bytes, api_key: str, model_name: str = 
     **Rules:**
     - "Client Name" ends in 園 or 学校.
     - "Orders": Extract the numerical counts for each bento column.
+    - **Mapping**: You MUST include the `bento_name` for every order. It must match the string in `bento_headers` exactly.
     - **Cell Structure Rule**: Cells often contain two numbers stacked vertically.
       - **Top Number** = Student (園児) count.
       - **Bottom Number** = Teacher (先生/職員) count.
     - If a cell has only one number, assume it is Student unless clearly labeled otherwise.
-    - **Order**: Ensure the `orders` list preserves the Left-to-Right column order from the table.
     - Ignore empty cells or "-".
     - Use half-width numbers.
     - If "35+1", sum it to 36.

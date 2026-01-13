@@ -80,24 +80,37 @@ async def process_order(file: UploadFile = File(...)):
 
         ai_result = process_order_pdf_with_ai(pdf_bytes, api_key)
         
-        # 1. Process Clients
+        # 1. Process Clients with Explicit Mapping
         df_client_sheet = None
         clients = ai_result.get('clients', [])
+        bento_header_names = ai_result.get('bento_headers', [])
+        
         client_rows = []
         for client in clients:
             c_name = client.get('client_name', '')
             orders = client.get('orders', [])
             
-            student_meals = [o['count'] for o in orders if o.get('type') == 'student']
-            teacher_meals = [o['count'] for o in orders if o.get('type') == 'teacher']
+            # Helper to find count by name and type
+            def get_count(target_bento_name, target_type):
+                if not target_bento_name: return ''
+                for o in orders:
+                    # Match name exactly as AI is instructed to use header names
+                    if o.get('bento_name') == target_bento_name and o.get('type') == target_type:
+                        return o.get('count', '')
+                return ''
 
-            # Pad or truncate to match Excel expects (3 students, 3 teachers cols)
-            s1 = student_meals[0] if len(student_meals) > 0 else ''
-            s2 = student_meals[1] if len(student_meals) > 1 else ''
-            s3 = student_meals[2] if len(student_meals) > 2 else ''
-            t1 = teacher_meals[0] if len(teacher_meals) > 0 else ''
-            t2 = teacher_meals[1] if len(teacher_meals) > 1 else ''
-            t3 = teacher_meals[2] if len(teacher_meals) > 2 else ''
+            # Map to Columns 1, 2, 3 based on Header Order (Top-Left 3 columns)
+            h1 = bento_header_names[0] if len(bento_header_names) > 0 else None
+            h2 = bento_header_names[1] if len(bento_header_names) > 1 else None
+            h3 = bento_header_names[2] if len(bento_header_names) > 2 else None
+            
+            s1 = get_count(h1, 'student')
+            s2 = get_count(h2, 'student')
+            s3 = get_count(h3, 'student')
+            
+            t1 = get_count(h1, 'teacher')
+            t2 = get_count(h2, 'teacher')
+            t3 = get_count(h3, 'teacher')
 
             client_rows.append({
                 'クライアント名': c_name,
