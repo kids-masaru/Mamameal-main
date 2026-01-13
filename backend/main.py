@@ -197,7 +197,28 @@ async def process_order(file: UploadFile = File(...)):
             safe_write_df(template_wb["注文弁当の抽出"], df_bento_sheet)
             
         if df_client_sheet is not None and "クライアント抽出" in template_wb.sheetnames:
-            safe_write_df(template_wb["クライアント抽出"], df_client_sheet)
+            ws_client = template_wb["クライアント抽出"]
+            # Write DATA starting at Row 2 (leaving Row 1 for headers)
+            # This ensures we don't overwrite our new dynamic headers
+            safe_write_df(ws_client, df_client_sheet, start_row=2)
+            
+            # --- Dynamic Header Injection (Explicit Write) ---
+            # Manually write headers to Row 1 because safe_write_df reads values only
+            ws_client.cell(row=1, column=1, value='クライアント名')
+            
+            if bento_header_names:
+                for i in range(3):
+                    if i < len(bento_header_names):
+                        b_name = bento_header_names[i]
+                        # Student Columns start at B (Col 2)
+                        # Teacher Columns start at E (Col 5)
+                        
+                        # Student Header (B, C, D)
+                        ws_client.cell(row=1, column=2+i, value=f"{b_name}\n(園児)")
+                        
+                        # Teacher Header (E, F, G)
+                        ws_client.cell(row=1, column=5+i, value=f"{b_name}\n(先生)")
+            # -------------------------------------------------
             
         out_template = io.BytesIO()
         template_wb.save(out_template)
