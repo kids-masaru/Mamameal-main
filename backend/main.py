@@ -91,12 +91,13 @@ async def process_order(file: UploadFile = File(...)):
             student_meals = [o['count'] for o in orders if o.get('type') == 'student']
             teacher_meals = [o['count'] for o in orders if o.get('type') == 'teacher']
 
-            # Pad or truncate to match Excel expects (3 students, 2 teachers cols)
+            # Pad or truncate to match Excel expects (3 students, 3 teachers cols)
             s1 = student_meals[0] if len(student_meals) > 0 else ''
             s2 = student_meals[1] if len(student_meals) > 1 else ''
             s3 = student_meals[2] if len(student_meals) > 2 else ''
             t1 = teacher_meals[0] if len(teacher_meals) > 0 else ''
             t2 = teacher_meals[1] if len(teacher_meals) > 1 else ''
+            t3 = teacher_meals[2] if len(teacher_meals) > 2 else ''
 
             client_rows.append({
                 'クライアント名': c_name,
@@ -104,7 +105,8 @@ async def process_order(file: UploadFile = File(...)):
                 '園児の給食の数2': s2,
                 '園児の給食の数3': s3,
                 '先生の給食の数1': t1,
-                '先生の給食の数2': t2
+                '先生の給食の数2': t2,
+                '先生の給食の数3': t3
             })
         if client_rows:
             # Reorder columns to match 'extract_detailed_client_info' output format if needed?
