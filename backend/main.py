@@ -54,6 +54,7 @@ async def create_seal(file: UploadFile = File(...)):
 from api.pdf_utils import (
     safe_write_df, match_bento_data, paste_dataframe_to_sheet
 )
+from api.table_extractor import extract_client_table
 # Note: Legacy extraction functions removed/unused in favor of AI
 from api.ai_processor import process_order_pdf_with_ai
 from api.master_utils import load_master_csv, save_master_file
@@ -80,50 +81,40 @@ async def process_order(file: UploadFile = File(...)):
 
         ai_result = process_order_pdf_with_ai(pdf_bytes, api_key)
         
-        # 1. Process Clients with Explicit Mapping
+        # 1. Process Clients (Rule-Based Grid Extraction)
+        # Using pdfplumber grid extraction for reliability (vs AI truncation/hallucination)
         df_client_sheet = None
-        clients = ai_result.get('clients', [])
-        bento_header_names = ai_result.get('bento_headers', [])
+        client_grid_data = extract_client_table(pdf_bytes)
         
         client_rows = []
-        for client in clients:
-            c_name = client.get('client_name', '')
-            orders = client.get('orders', [])
+        for client in client_grid_data:
+            c_name = client['client_name']
+            counts = client['counts'] # List of {student, teacher}
             
-            # Helper to find count by name and type
-            def get_count(target_bento_name, target_type):
-                if not target_bento_name: return ''
-                for o in orders:
-                    # Match name exactly as AI is instructed to use header names
-                    if o.get('bento_name') == target_bento_name and o.get('type') == target_type:
-                        return o.get('count', '')
-                return ''
-
-            # Map to Columns 1, 2, 3 based on Header Order (Top-Left 3 columns)
-            h1 = bento_header_names[0] if len(bento_header_names) > 0 else None
-            h2 = bento_header_names[1] if len(bento_header_names) > 1 else None
-            h3 = bento_header_names[2] if len(bento_header_names) > 2 else None
+            # Map index 0 -> Col 1 (B/E), index 1 -> Col 2 (C/F), index 2 -> Col 3 (D/G)
+            def get_vals(idx):
+                if idx < len(counts):
+                    return counts[idx]['student'], counts[idx]['teacher']
+                return 0, 0
             
-            s1 = get_count(h1, 'student')
-            s2 = get_count(h2, 'student')
-            s3 = get_count(h3, 'student')
+            s1, t1 = get_vals(0)
+            s2, t2 = get_vals(1)
+            s3, t3 = get_vals(2)
             
-            t1 = get_count(h1, 'teacher')
-            t2 = get_count(h2, 'teacher')
-            t3 = get_count(h3, 'teacher')
+            # Helper to return empty string if 0, else int
+            def fmt(v): return v if v != 0 else ''
 
             client_rows.append({
                 'クライアント名': c_name,
-                '園児の給食の数1': s1,
-                '園児の給食の数2': s2,
-                '園児の給食の数3': s3,
-                '先生の給食の数1': t1,
-                '先生の給食の数2': t2,
-                '先生の給食の数3': t3
+                '園児の給食の数1': fmt(s1),
+                '園児の給食の数2': fmt(s2),
+                '園児の給食の数3': fmt(s3),
+                '先生の給食の数1': fmt(t1),
+                '先生の給食の数2': fmt(t2),
+                '先生の給食の数3': fmt(t3)
             })
+            
         if client_rows:
-            # Reorder columns to match 'extract_detailed_client_info' output format if needed?
-            # The safe_write_df just dumps dict or tuple? No, it expects DataFrame.
             df_client_sheet = pd.DataFrame(client_rows)
 
         # 2. Process Bentos

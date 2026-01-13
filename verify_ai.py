@@ -6,6 +6,7 @@ from dotenv import load_dotenv
 sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'backend'))
 
 from api.ai_processor import process_order_pdf_with_ai
+from api.table_extractor import extract_client_table
 
 # Load env from backend/.env
 env_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'backend', '.env')
@@ -52,6 +53,13 @@ try:
     print("\n--- AI Result ---")
     import json
     print(json.dumps(result, indent=2, ensure_ascii=False))
+
+    print("\n--- Rule-Based Client Extraction ---")
+    grid = extract_client_table(pdf_bytes)
+    print(f"Extracted {len(grid)} clients.")
+    # Print first few
+    print(json.dumps(grid[:5], indent=2, ensure_ascii=False))
+
     print("\nSuccess!")
 except Exception as e:
     print(f"\nError: {e}")
