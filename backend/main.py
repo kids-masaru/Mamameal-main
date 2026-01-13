@@ -52,9 +52,9 @@ async def create_seal(file: UploadFile = File(...)):
 
 # --- Order/Invoice Processing ---
 from api.pdf_utils import (
-    safe_write_df, match_bento_data, paste_dataframe_to_sheet
+    safe_write_df, match_bento_data, paste_dataframe_to_sheet,
+    extract_detailed_client_info_from_pdf
 )
-from api.table_extractor import extract_client_table
 # Note: Legacy extraction functions removed/unused in favor of AI
 from api.ai_processor import process_order_pdf_with_ai
 from api.master_utils import load_master_csv, save_master_file
@@ -81,37 +81,32 @@ async def process_order(file: UploadFile = File(...)):
 
         ai_result = process_order_pdf_with_ai(pdf_bytes, api_key)
         
-        # 1. Process Clients (Rule-Based Grid Extraction)
-        # Using pdfplumber grid extraction for reliability (vs AI truncation/hallucination)
+        # 1. Process Clients (Legacy Layout Extraction)
+        # Reverting to original 'mamameal-next' logic as requested by user.
+        # This uses 'extract_text_with_layout' to robustly find rows.
         df_client_sheet = None
-        client_grid_data = extract_client_table(pdf_bytes)
+        client_data_legacy = extract_detailed_client_info_from_pdf(io.BytesIO(pdf_bytes))
         
         client_rows = []
-        for client in client_grid_data:
-            c_name = client['client_name']
-            counts = client['counts'] # List of {student, teacher}
+        for info in client_data_legacy:
+            s_list = info.get('student_meals', [])
+            t_list = info.get('teacher_meals', [])
             
-            # Map index 0 -> Col 1 (B/E), index 1 -> Col 2 (C/F), index 2 -> Col 3 (D/G)
-            def get_vals(idx):
-                if idx < len(counts):
-                    return counts[idx]['student'], counts[idx]['teacher']
-                return 0, 0
+            def get_val(lst, idx):
+                return lst[idx] if idx < len(lst) else ''
             
-            s1, t1 = get_vals(0)
-            s2, t2 = get_vals(1)
-            s3, t3 = get_vals(2)
+            # Legacy code slices student[:3] and teacher[:2]
+            s1, s2, s3 = get_val(s_list, 0), get_val(s_list, 1), get_val(s_list, 2)
+            t1, t2, t3 = get_val(t_list, 0), get_val(t_list, 1), get_val(t_list, 2)
             
-            # Helper to return empty string if 0, else int
-            def fmt(v): return v if v != 0 else ''
-
             client_rows.append({
-                'クライアント名': c_name,
-                '園児の給食の数1': fmt(s1),
-                '園児の給食の数2': fmt(s2),
-                '園児の給食の数3': fmt(s3),
-                '先生の給食の数1': fmt(t1),
-                '先生の給食の数2': fmt(t2),
-                '先生の給食の数3': fmt(t3)
+                'クライアント名': info['client_name'],
+                '園児の給食の数1': s1,
+                '園児の給食の数2': s2,
+                '園児の給食の数3': s3,
+                '先生の給食の数1': t1,
+                '先生の給食の数2': t2,
+                '先生の給食の数3': t3
             })
             
         if client_rows:

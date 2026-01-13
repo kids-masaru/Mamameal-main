@@ -6,7 +6,7 @@ from dotenv import load_dotenv
 sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'backend'))
 
 from api.ai_processor import process_order_pdf_with_ai
-from api.table_extractor import extract_client_table
+from api.pdf_utils import extract_detailed_client_info_from_pdf
 
 # Load env from backend/.env
 env_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'backend', '.env')
@@ -54,8 +54,9 @@ try:
     import json
     print(json.dumps(result, indent=2, ensure_ascii=False))
 
-    print("\n--- Rule-Based Client Extraction ---")
-    grid = extract_client_table(pdf_bytes)
+    print("\n--- Rule-Based Client Extraction (Legacy) ---")
+    import io
+    grid = extract_detailed_client_info_from_pdf(io.BytesIO(pdf_bytes))
     print(f"Extracted {len(grid)} clients.")
     # Print first few
     print(json.dumps(grid[:5], indent=2, ensure_ascii=False))
