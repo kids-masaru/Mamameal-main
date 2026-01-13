@@ -80,6 +80,7 @@ async def process_order(file: UploadFile = File(...)):
              raise HTTPException(status_code=500, detail="API Key not configured for AI processing")
 
         ai_result = process_order_pdf_with_ai(pdf_bytes, api_key)
+        bento_header_names = ai_result.get('bento_headers', [])
         
         # 1. Process Clients (Legacy Layout Extraction)
         # Reverting to original 'mamameal-next' logic as requested by user.
