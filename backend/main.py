@@ -90,18 +90,38 @@ async def process_order(file: UploadFile = File(...)):
         
         num_bento_cols = len(bento_header_names) if bento_header_names else 5 # Default to 5 to be safe if no AI headers?
         
+        # Create lookup dictionary: 得意先名(B列) -> 得意先名略称(D列)
+        customer_name_map = {}
+        if not df_customer_master.empty:
+            df_customer_master.columns = df_customer_master.columns.str.strip()
+            # B列=得意先名, D列=得意先名略称 (column indices 1 and 3)
+            col_names = list(df_customer_master.columns)
+            if len(col_names) >= 4:
+                internal_name_col = col_names[1]  # B列: 得意先名
+                customer_name_col = col_names[3]  # D列: 得意先名略称
+                for _, row in df_customer_master.iterrows():
+                    internal_name = str(row[internal_name_col]).strip()
+                    customer_name = str(row[customer_name_col]).strip()
+                    if internal_name and customer_name:
+                        customer_name_map[internal_name] = customer_name
+        
         client_rows = []
         for info in client_data_legacy:
             s_list = info.get('student_meals', [])
             t_list = info.get('teacher_meals', [])
             
-            # Add client_id (A列) and client_name (B列)
+            internal_client_name = info['client_name']
+            # Lookup customer-facing name from master
+            customer_facing_name = customer_name_map.get(internal_client_name, '')
+            
+            # Add client_id (A列), client_name (B列), customer_facing_name (C列)
             row = {
                 'クライアントID': info.get('client_id', ''),
-                'クライアント名': info['client_name']
+                'クライアント名': internal_client_name,
+                'クライアント名（顧客向け）': customer_facing_name
             }
             
-            # Dynamic Columns: Student 1..N (C列から開始)
+            # Dynamic Columns: Student 1..N (D列から開始)
             for i in range(num_bento_cols):
                 val = s_list[i] if i < len(s_list) else ''
                 row[f's_{i}'] = val
@@ -115,8 +135,8 @@ async def process_order(file: UploadFile = File(...)):
             
         if client_rows:
             df_client_sheet = pd.DataFrame(client_rows)
-            # Enforce column order: ID, Client, S...S, T...T
-            cols = ['クライアントID', 'クライアント名'] + [f's_{i}' for i in range(num_bento_cols)] + [f't_{i}' for i in range(num_bento_cols)]
+            # Enforce column order: ID, Client, CustomerName, S...S, T...T
+            cols = ['クライアントID', 'クライアント名', 'クライアント名（顧客向け）'] + [f's_{i}' for i in range(num_bento_cols)] + [f't_{i}' for i in range(num_bento_cols)]
             # Ensure only existing columns are selected (in case df was created differently?)
             # creating from list of dicts creates all keys.
             df_client_sheet = df_client_sheet[cols]
@@ -190,20 +210,21 @@ async def process_order(file: UploadFile = File(...)):
             
             # --- Dynamic Header Injection (Explicit Write) ---
             # Manually write headers to Row 1 because safe_write_df reads values only
-            # The structure is: ID | Client | Student_Cols... | Teacher_Cols...
+            # The structure is: ID | Client | CustomerName | Student_Cols... | Teacher_Cols...
             ws_client.cell(row=1, column=1, value='クライアントID')
             ws_client.cell(row=1, column=2, value='クライアント名')
+            ws_client.cell(row=1, column=3, value='クライアント名（顧客向け）')
             
             if bento_header_names:
                 num_cols = len(bento_header_names)
                 for i in range(num_cols):
                     b_name = bento_header_names[i]
                     
-                    # Student Header (Starts at Col 3)
-                    ws_client.cell(row=1, column=3+i, value=f"{b_name}\n(園児)")
+                    # Student Header (Starts at Col 4 = D列)
+                    ws_client.cell(row=1, column=4+i, value=f"{b_name}\n(園児)")
                     
                     # Teacher Header (Starts after Student Block)
-                    ws_client.cell(row=1, column=3+num_cols+i, value=f"{b_name}\n(先生)")
+                    ws_client.cell(row=1, column=4+num_cols+i, value=f"{b_name}\n(先生)")
             # -------------------------------------------------
             
         out_template = io.BytesIO()
