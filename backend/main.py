@@ -95,9 +95,13 @@ async def process_order(file: UploadFile = File(...)):
             s_list = info.get('student_meals', [])
             t_list = info.get('teacher_meals', [])
             
-            row = {'クライアント名': info['client_name']}
+            # Add client_id (A列) and client_name (B列)
+            row = {
+                'クライアントID': info.get('client_id', ''),
+                'クライアント名': info['client_name']
+            }
             
-            # Dynamic Columns: Student 1..N
+            # Dynamic Columns: Student 1..N (C列から開始)
             for i in range(num_bento_cols):
                 val = s_list[i] if i < len(s_list) else ''
                 row[f's_{i}'] = val
@@ -111,8 +115,8 @@ async def process_order(file: UploadFile = File(...)):
             
         if client_rows:
             df_client_sheet = pd.DataFrame(client_rows)
-            # Enforce column order: Client, S...S, T...T
-            cols = ['クライアント名'] + [f's_{i}' for i in range(num_bento_cols)] + [f't_{i}' for i in range(num_bento_cols)]
+            # Enforce column order: ID, Client, S...S, T...T
+            cols = ['クライアントID', 'クライアント名'] + [f's_{i}' for i in range(num_bento_cols)] + [f't_{i}' for i in range(num_bento_cols)]
             # Ensure only existing columns are selected (in case df was created differently?)
             # creating from list of dicts creates all keys.
             df_client_sheet = df_client_sheet[cols]
@@ -186,19 +190,20 @@ async def process_order(file: UploadFile = File(...)):
             
             # --- Dynamic Header Injection (Explicit Write) ---
             # Manually write headers to Row 1 because safe_write_df reads values only
-            # The structure is: Client | Student_Cols... | Teacher_Cols...
-            ws_client.cell(row=1, column=1, value='クライアント名')
+            # The structure is: ID | Client | Student_Cols... | Teacher_Cols...
+            ws_client.cell(row=1, column=1, value='クライアントID')
+            ws_client.cell(row=1, column=2, value='クライアント名')
             
             if bento_header_names:
                 num_cols = len(bento_header_names)
                 for i in range(num_cols):
                     b_name = bento_header_names[i]
                     
-                    # Student Header (Starts at Col 2)
-                    ws_client.cell(row=1, column=2+i, value=f"{b_name}\n(園児)")
+                    # Student Header (Starts at Col 3)
+                    ws_client.cell(row=1, column=3+i, value=f"{b_name}\n(園児)")
                     
                     # Teacher Header (Starts after Student Block)
-                    ws_client.cell(row=1, column=2+num_cols+i, value=f"{b_name}\n(先生)")
+                    ws_client.cell(row=1, column=3+num_cols+i, value=f"{b_name}\n(先生)")
             # -------------------------------------------------
             
         out_template = io.BytesIO()
