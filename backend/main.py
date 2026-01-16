@@ -94,11 +94,11 @@ async def process_order(file: UploadFile = File(...)):
         customer_name_map = {}
         if not df_customer_master.empty:
             df_customer_master.columns = df_customer_master.columns.str.strip()
-            # A列=得意先CD, D列=得意先名略称 (column indices 0 and 3)
+            # A列=得意先CD, B列=得意先名 (column indices 0 and 1)
             col_names = list(df_customer_master.columns)
-            if len(col_names) >= 4:
+            if len(col_names) >= 2:
                 id_col = col_names[0]      # A列: 得意先CD
-                customer_name_col = col_names[3]  # D列: 得意先名略称
+                customer_name_col = col_names[1]  # B列: 得意先名 (顧客向け正式名称)
                 for _, row in df_customer_master.iterrows():
                     cid = str(row[id_col]).strip()
                     cname = str(row[customer_name_col]).strip()
