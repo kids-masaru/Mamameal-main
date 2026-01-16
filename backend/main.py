@@ -90,20 +90,20 @@ async def process_order(file: UploadFile = File(...)):
         
         num_bento_cols = len(bento_header_names) if bento_header_names else 5 # Default to 5 to be safe if no AI headers?
         
-        # Create lookup dictionary: 得意先名(B列) -> 得意先名略称(D列)
+        # Create lookup dictionary: 得意先CD(A列) -> 得意先名略称(D列)
         customer_name_map = {}
         if not df_customer_master.empty:
             df_customer_master.columns = df_customer_master.columns.str.strip()
-            # B列=得意先名, D列=得意先名略称 (column indices 1 and 3)
+            # A列=得意先CD, D列=得意先名略称 (column indices 0 and 3)
             col_names = list(df_customer_master.columns)
             if len(col_names) >= 4:
-                internal_name_col = col_names[1]  # B列: 得意先名
+                id_col = col_names[0]      # A列: 得意先CD
                 customer_name_col = col_names[3]  # D列: 得意先名略称
                 for _, row in df_customer_master.iterrows():
-                    internal_name = str(row[internal_name_col]).strip()
-                    customer_name = str(row[customer_name_col]).strip()
-                    if internal_name and customer_name:
-                        customer_name_map[internal_name] = customer_name
+                    cid = str(row[id_col]).strip()
+                    cname = str(row[customer_name_col]).strip()
+                    if cid and cname:
+                        customer_name_map[cid] = cname
         
         client_rows = []
         for info in client_data_legacy:
@@ -111,8 +111,10 @@ async def process_order(file: UploadFile = File(...)):
             t_list = info.get('teacher_meals', [])
             
             internal_client_name = info['client_name']
-            # Lookup customer-facing name from master
-            customer_facing_name = customer_name_map.get(internal_client_name, '')
+            client_id = str(info.get('client_id', '')).strip()
+            
+            # Lookup customer-facing name using Client ID
+            customer_facing_name = customer_name_map.get(client_id, '')
             
             # Add client_id (A列), client_name (B列), customer_facing_name (C列)
             row = {
